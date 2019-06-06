@@ -1,0 +1,123 @@
+1.使用cookie简单的登录验证
+做一个规定：如果cookie中有username，则为登录状态；如果没有，则不是登录状态。
+登录操作成功时，设置cookie：
+res.setHeader('Set-Cookie',`username=${data.username}; path=/ `)
+操作cookie,设置username和path,path=/表示cookie要适用于根目录，如果没有设置path=/,默认为path=/api/user/login,
+只有在访问“http://localhost:3000/api/user/login”或者“http://localhost:3000/api/user/login/xxx”时cookie才起作用，
+所以需要设置path=/,这样在访问任意“http://localhost:3000/xxx...”时cookie都会起作用，才能保证登录状态的正确验证
+
+2.对于前端修改cookie的限制
+由于前端可以通过document.cookie='key=value'来篡改username的值，这样很危险，所以要做限制，就往cookie里设置httpOnly。
+这样前端再使用document.cookie修改cookie时就无效了
+res.setHeader('Set-Cookie',`username=${data.username};path=/;httpOnly`)
+
+3.cookie的过期时间
+设置expires
+const getCookieExpires = () => {
+  const d = new Date()
+  d.setTime(d.getTime()+(24*60*60*1000)) // 加上一天
+  console.log(d.toGMTString())
+  return d.toGMTString()
+}
+res.setHeader('Set-Cookie', `username=${data.username};path=/;httpOnly;expires=${getCookieExpires()}`)
+
+4.使用cookie验证登录存在的问题
+会暴露username,很危险。
+解决：cookie中存储userid,在server端对应username。
+使用session存储username,根据userid找到对应的session
+
+5.使用redis存储session
+这样使用session依然存在一些问题：
+①由于session存储的数据在内存中，如果数据越来越多会造成服务端程序崩溃
+②多进程无法共享session
+使用redis，Redis是一个高性能的key-value数据库，内存数据库，session很适合用redis存储，将session存储到redis中，可以解决以上两个问题。
+下载安装：https://www.runoob.com/redis/redis-install.html
+使用redis,打开一个 cmd 窗口在redis的根目录下使用命令：redis-server.exe。
+另打开一个 cmd 窗口，使用命令：redis-cli.exe -h 127.0.0.1 -p 6379
+设置键值对命令：set mykey abc
+取出键对应的值：get mykey
+node连接redis，安装redis包npm install redis --save
+
+const redis=require('redis')
+//创建redis客户端,参数为端口号，IP
+const redisClient=redis.createClient(6379,127.0.0.1)
+//设置键值对
+redisClient.set(key,val,redis.print)
+//取值
+redisClient.get(key,(err,val)=>{})
+
+6.使用nginx反向代理，进行前后端联调
+前端页面的访问使用http-server,安装npm install http-server,在html页面的目录下使用 npx http-server -p 3001
+http://127.0.0.1:3001/xxx.html访问，显然后端的端口是3000,存在跨域无法联调，这里介绍如何使用nginx进行反向代理联调。
+下载nginx：http://nginx.org/en/download.html
+在nginx目录下修改配置文件nginx.conf,在server中配置
+listen:8080   #表示nginx监听的端口号
+location / {  #表示访问根路径时代理到3001
+          proxy_pass http://localhost:3001;
+        }
+
+location /api/ {  #表示访问 /api/ 时代理到3001
+          proxy_pass http://localhost:3000;
+          proxy_set_header Host $host;
+}
+使用命令nginx启动nginx，访问http://localhost:8080/index.html进行联调
+
+7.日志
+access.log存储访问日志
+error.log存储错误日志
+event.log存储自定义日志
+
+8.安全
+①sql注入
+使用mysql.escape可以避免,在使用有变量拼接的sql语句都要使用escape方法以避免sql注入
+const login = (username, password) => {
+  username=escape(username)
+  password=escape(password)
+  const sql = `select username,realname from users where username=${username} and password=${password}`
+  return exec(sql).then(rows => {
+    return rows[0] || {}
+  })
+}
+②xss攻击
+安装xss包，npm install xss,使用时将可能被注入的变量作为参数调用xss方法
+const xss =require('xss')
+const title=xss(blogData.title)
+③密码加密
+9.使用express框架
+安装npm install express-generator -g
+10.使用express-session和connect-redis
+const session = require('express-session')
+const RedisStore = require('connect-redis')(session)
+const redisClient = require('./db/redis')
+const sessionStore = new RedisStore({
+  client: redisClient
+})
+app.use(session({
+  secret: 'abc',
+  resave: true,
+  saveUninitialized: true,
+  store: sessionStore,
+  cookie: {
+    path: '/', //根路径下cookie都会生效,默认配置
+    httpOnly: true, // 默认配置
+    maxAge: 24 * 60 * 60 * 1000
+  }
+}))
+11.使用morgan写日志
+express脚手架中已经自带了morgan，https://github.com/express/morgan
+const logger = require('morgan');
+app.use(logger('dev',{ //第二个参数配置对象
+  stream: process.stdout // 默认配置
+}));
+把日志输出到文件
+if (ENV !== 'production') {
+  // 开发环境
+  app.use(logger('dev'))
+} else {
+  //线上环境
+  const logFileName = path.join(__dirname, 'logs', 'access.log')
+  const writeStream = fs.createWriteStream(logFileName, {flags: 'a'})
+  app.use(logger('combined', {
+    stream: writeStream
+  }))
+}

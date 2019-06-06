@@ -15,7 +15,7 @@ if (env === 'dev') {
   }
 } else if (env === 'production') {
   MYSQL_CONF = {
-    host: '129.28.21.38',
+    host: 'localhost',
     user: 'root',
     password: '123456',
     port: '3306',
@@ -23,7 +23,7 @@ if (env === 'dev') {
   }
   REDIS_CONF={
     port:6379,
-    host:'129.28.21.38'
+    host:'127.0.0.1'
   }
 } else if (env === 'test') {
   MYSQL_CONF = {

@@ -1,8 +1,9 @@
 const createError = require('http-errors');
 const express = require('express');
 const path = require('path');
+const fs = require('fs')
 const cookieParser = require('cookie-parser');
-const logger = require('morgan');
+const logger = require('morgan'); //用来写日志
 const session = require('express-session')
 const RedisStore = require('connect-redis')(session)
 
@@ -11,8 +12,19 @@ const userRouter = require('./routes/user')
 
 const app = express();
 
+const ENV = process.env.NODE_ENV
+if (ENV !== 'production') {
+  // 开发环境
+  app.use(logger('dev'))
+} else {
+  //线上环境
+  const logFileName = path.join(__dirname, 'logs', 'access.log')
+  const writeStream = fs.createWriteStream(logFileName, {flags: 'a'})
+  app.use(logger('combined', {
+    stream: writeStream
+  }))
+}
 
-app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 app.use(cookieParser());

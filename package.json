@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_ENV=dev nodemon ./bin/www.js",
+    "pro": "cross-env NODE_ENV=production nodemon ./bin/www.js",
     "start": "node ./bin/www"
   },
   "dependencies": {
