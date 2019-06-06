@@ -85,6 +85,12 @@ const title=xss(blogData.title)
 ③密码加密
 9.使用express框架
 安装npm install express-generator -g
+使用 express 命令来快速从创建一个项目目录
+        express 项目文件夹的名字 -e
+        示例: express demo -e
+        备注:
+            项目文件夹的名字:会自动生成一个项目文件夹
+            -e:  使用 ejs 模板
 10.使用express-session和connect-redis
 const session = require('express-session')
 const RedisStore = require('connect-redis')(session)
@@ -118,6 +124,41 @@ if (ENV !== 'production') {
   const logFileName = path.join(__dirname, 'logs', 'access.log')
   const writeStream = fs.createWriteStream(logFileName, {flags: 'a'})
   app.use(logger('combined', {
+    stream: writeStream
+  }))
+}
+12.使用koa2框架
+安装npm install koa-generator -g --registry=https://registry.npm.taobao.org
+在指定目录下创建项目koa 项目文件夹名
+13.使用koa-generic-session和koa-redis
+const session=require('koa-generic-session')
+const redisStore=require('koa-redis')
+//session配置
+app.keys=['fjx']
+app.use(session({
+  //配置cookie
+  cookie:{
+    path: '/',
+    httpOnly:true,
+    maxAge:24*60*60*1000
+  },
+  //配置redis
+  store: redisStore({
+    all:`${REDIS_CONF.host}:${REDIS_CONF.port}`,
+
+  })
+}))
+14.koa2使用koa-morgan插件兼容morgan使用在koa2中记录日志
+const morgan = require('koa-morgan')
+const ENV = process.env.NODE_ENV
+if (ENV !== 'production') {
+  // 开发环境
+  app.use(morgan('dev'))
+} else {
+  //线上环境
+  const logFileName = path.join(__dirname, 'logs', 'access.log')
+  const writeStream = fs.createWriteStream(logFileName, {flags: 'a'})
+  app.use(morgan('combined', {
     stream: writeStream
   }))
 }
